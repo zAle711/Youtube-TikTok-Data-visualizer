@@ -1,42 +1,69 @@
 from abc import abstractmethod, ABC
+from datetime import datetime
 import json
 import pandas as pd
 import matplotlib.pyplot as plot
 
-class DataAnalizer(ABC):
-    dataframe = None
-    def __init__(self, file_name:str) -> None:
-        self.file_name = file_name
+class DataAnalyzer(ABC):
+    data_frame = None
+    def __init__(self) -> None:
         super().__init__()
 
+    @abstractmethod
     def load_data(self):
-        with open(f"data/{self.file_name}", "r", encoding="utf-8") as fp:
-            file_content = fp.read()
-            fp.close()
-            return json.loads(file_content)
-
+        pass
     @abstractmethod
     def create_dataframe(self):
         pass
 
     def get_dataframe(self):
-        if not self.dataframe:
+        if not self.data_frame:
             self.create_dataframe()
-        return self.dataframe
-
-class YoutubeAnalizer(DataAnalizer):
+        return self.data_frame
     
+    #PLOT NUMBERS OF VIDEO SAW BY TIME OF THE DAY (every hour)
+    def show_hours_views(self):
+        #Function to select 
+        def set_hours(hour):
+            hour = str(hour)
+            if len(hour) == 1:
+                hour = "0" + hour
+            hour += ":00"
+            return hour
+
+        df = self.data_frame.copy()
+        df['timestamp'] = df['timestamp'].dt.hour
+        df['timestamp'] = df['timestamp'].apply(set_hours)
+        
+        df = df.groupby("timestamp").size().reset_index(name='count')
+        df.plot.bar(x="timestamp", y="count")
+        plot.show(block=True)
+    
+    #PLOT Total of video watched every day
+    def show_video_by_day(self):
+        df = self.data_frame.groupby('Date').size().reset_index(name='total_of_the_day')
+        df[ df['Date'] > datetime(2021,1,1,0,0,0).date() ].plot(x='Date', y='total_of_the_day')
+        plot.show()
+
+class YoutubeAnalizer(DataAnalyzer):
+    FILE_NAME = 'youtube.json'
     def __init__(self) -> None:
-        super().__init__('youtube.json')
+        super().__init__()
         self.create_dataframe()
+
+    def load_data(self):
+        with open(f"data/{self.FILE_NAME}", "r", encoding="utf-8") as fp:
+            file_content = fp.read()
+            fp.close()
+            return json.loads(file_content)
 
     #PARSE JSON AND CREATE A DATA FRAME OBJECT
     def create_dataframe(self):
-        data_frame = pd.DataFrame(self.load_data())
-        data_frame['timestamp'] = data_frame['timestamp'].apply(self.convert_time)
-        data_frame['timestamp'] = pd.to_datetime( data_frame['timestamp'], format='%d%b%Y %H:%M:%S', errors='coerce')
-        data_frame = data_frame.dropna()
-        self.data_frame = data_frame
+        df = pd.DataFrame(self.load_data())
+        df['timestamp'] = df['timestamp'].apply(self.convert_time)
+        df['timestamp'] = pd.to_datetime( df['timestamp'], format='%d%b%Y %H:%M:%S', errors='coerce')
+        df['Date'] = df['timestamp'].dt.date
+        self.data_frame = df
     
     #translate italian months to english needed to convert timestamp to pd.DateTime    
     def convert_time(self, timestamp:str):
@@ -65,24 +92,31 @@ class YoutubeAnalizer(DataAnalizer):
         plot.subplots_adjust(bottom=.3)
         plot.show(block=True)
     
-    #PLOT NUMBERS OF VIDEO SAW BY TIME OF THE DAY (every hour)
-    def show_hours_views(self):
-        #Function to select 
-        def set_hours(hour):
-            hour = str(hour)
-            if len(hour) == 1:
-                hour = "0" + hour
-            hour += ":00"
-            return hour
+    
+        
+class TikTokAnalyzer(DataAnalyzer):
+    FILE_NAME = 'tiktok.json'
+    def __init__(self, ) -> None:
+        self.create_dataframe()
+    
+    def load_data(self):
+        with open('data/tiktok.json', 'r', encoding='utf-8') as file:
+            data = json.loads(file.read())       
+            file.close()
+            return data['Activity']['Video Browsing History']['VideoList']
 
-        df = self.data_frame.copy()
-        df['timestamp'] = df['timestamp'].dt.hour
-        df['timestamp'] = df['timestamp'].apply(set_hours)
-        
-        df = df.groupby("timestamp").size().reset_index(name='count')
-        df.plot.bar(x="timestamp", y="count")
-        plot.show(block=True)
-        
+    def create_dataframe(self):
+        df = pd.json_normalize(self.load_data())
+        df = df.rename({'Date':'timestamp'}, axis='columns')
+        df['timestamp'] = pd.to_datetime( df['timestamp'], format="%Y-%m-%d %H:%M:%S")
+        df['Date'] = df['timestamp'].dt.date
+        df = df.dropna()
+        self.data_frame = df
+
+
+
+
+
 
 # def create_animated_dataframe(data_frame):
 #     new_data_frame = data_frame.sort_values('timestamp')
@@ -103,8 +137,12 @@ class YoutubeAnalizer(DataAnalizer):
 
 if __name__ == "__main__":
     yt = YoutubeAnalizer()
-    yt.show_barplot()
-    yt.show_hours_views()
+    tiktok = TikTokAnalyzer()
+    # yt.show_barplot()
+    # yt.show_hours_views()
+    yt.show_video_by_day()
+    #tiktok.show_hours_views()
+    #tiktok.show_video_by_day()
 
     
 
