@@ -1,81 +1,88 @@
+from abc import abstractmethod, ABC
 import json
 import pandas as pd
 import matplotlib.pyplot as plot
 
+class DataAnalizer(ABC):
+    dataframe = None
+    def __init__(self, file_name:str) -> None:
+        self.file_name = file_name
+        super().__init__()
 
-def load_data():
-    json_data = None
-    with open("data.json", "r", encoding="utf-8") as fp:
-        file_content = fp.read()
-        json_data = json.loads(file_content)
-        fp.close()
-    with open("data2.json", "r", encoding="utf-8") as fp:
-        file_content = fp.read()
-        for video in json.loads(file_content):
-            if len(video['title']) >=3 and len(video['channel']) >= 3:
-                json_data.append(video)
-        fp.close()
-    return json_data
+    def load_data(self):
+        with open(f"data/{self.file_name}", "r", encoding="utf-8") as fp:
+            file_content = fp.read()
+            fp.close()
+            return json.loads(file_content)
 
-def get_barplot_data(data):
-    barplot_data = {}
-    for d in data:
-        channel_name = d['channel']
-        if channel_name in barplot_data.keys():
-            barplot_data[channel_name] += 1
+    @abstractmethod
+    def create_dataframe(self):
+        pass
+
+    def get_dataframe(self):
+        if not self.dataframe:
+            self.create_dataframe()
+        return self.dataframe
+
+class YoutubeAnalizer(DataAnalizer):
+    
+    def __init__(self) -> None:
+        super().__init__('youtube.json')
+        self.create_dataframe()
+
+    #PARSE JSON AND CREATE A DATA FRAME OBJECT
+    def create_dataframe(self):
+        data_frame = pd.DataFrame(self.load_data())
+        data_frame['timestamp'] = data_frame['timestamp'].apply(self.convert_time)
+        data_frame['timestamp'] = pd.to_datetime( data_frame['timestamp'], format='%d%b%Y %H:%M:%S', errors='coerce')
+        data_frame = data_frame.dropna()
+        self.data_frame = data_frame
+    
+    #translate italian months to english needed to convert timestamp to pd.DateTime    
+    def convert_time(self, timestamp:str):
+        
+        MONTH_CODE = {'gen': 'Jan', 'feb': 'Feb', 'mar': 'Mar', 'apr': 'Apr', 'mag': 'May', 'giu': 'Jun', 'lug': 'Jul', 'ago': 'Aug', 'set': 'Sep', 'ott': 'Oct', 'nov': 'Nov', 'dic': 'Dec'}
+
+        date, time = timestamp.split(",")
+        month = date.split(" ")[1]
+        
+        if month in MONTH_CODE.keys() and not month[0].isdigit():
+            date = date.replace(month, MONTH_CODE[month])
         else:
-            barplot_data[channel_name] = 1
-    return barplot_data
+            return None
+        date = date.replace(" ", "").strip()
+        time = time[:-4].strip()
 
-#MOST VIEWED CHANNELS BAR PLOT
-def show_barplot(data_frame):
+        return date + " " + time
 
-    data_frame = data_frame.groupby('channel')['channel'].count().reset_index(name='views')
-    data_frame = data_frame[data_frame['views'] > 20]
-    data_frame = data_frame.sort_values('views', ascending=False)
-    data_frame.head(20).plot.bar(x="channel", y="views", title="Most Viewed Channels", figsize=(50, 50))
-    plot.subplots_adjust(bottom=.3)
-    plot.show(block=True)
+    #BAR PLOT OF THE MOST VIEWED CHANNELS
+    def show_barplot(self):
 
-def convert_time(timestamp:str):
-    #translates italian months to english
-    MONTH_CODE = {'gen': 'Jan', 'feb': 'Feb', 'mar': 'Mar', 'apr': 'Apr', 'mag': 'May', 'giu': 'Jun', 'lug': 'Jul', 'ago': 'Aug', 'set': 'Sep', 'ott': 'Oct', 'nov': 'Nov', 'dic': 'Dec'}
+        df = self.data_frame.groupby('channel')['channel'].count().reset_index(name='views')
+        df = df[df['views'] > 20]
+        df = df.sort_values('views', ascending=False)
+        df.head(20).plot.bar(x="channel", y="views", title="Most Viewed Channels", figsize=(50, 50))
+        plot.subplots_adjust(bottom=.3)
+        plot.show(block=True)
     
-    date, time = timestamp.split(",")
-    month = date.split(" ")[1]
-    
-    if month in MONTH_CODE.keys():
-        date = date.replace(month, MONTH_CODE[month])
-    date = date.replace(" ", "").strip()
-    time = time[:-4].strip()
+    #PLOT NUMBERS OF VIDEO SAW BY TIME OF THE DAY (every hour)
+    def show_hours_views(self):
+        #Function to select 
+        def set_hours(hour):
+            hour = str(hour)
+            if len(hour) == 1:
+                hour = "0" + hour
+            hour += ":00"
+            return hour
 
-    return date + " " + time
-
-def set_hours(hour):
-    hour = str(hour)
-    if len(hour) == 1:
-        hour = "0" + hour
-    hour += ":00"
-    return hour
-
-def create_pandas_data_frame(data):
-    data_frame = pd.DataFrame(data)
-    data_frame['timestamp'] = data_frame['timestamp'].apply(convert_time)
-    data_frame['timestamp'] = pd.to_datetime( data_frame['timestamp'], format='%d%b%Y %H:%M:%S')
-    return data_frame
-
-def show_hours_views(data_frame):
-    #data_frame = pd.DataFrame(data)
-    #data_frame['timestamp'] = data_frame['timestamp'].apply(convert_time)
-    
-    #data_frame['timestamp'] = pd.to_datetime( data_frame['timestamp'], format='%d%b%Y %H:%M:%S')
-    data_frame['timestamp'] = data_frame['timestamp'].dt.hour
-    data_frame['timestamp'] = data_frame['timestamp'].apply(set_hours)
-    
-    data_frame = data_frame.groupby("timestamp").size().reset_index(name='count')
-    data_frame.plot.bar(x="timestamp", y="count")
-    plot.show(block=True)
-
+        df = self.data_frame.copy()
+        df['timestamp'] = df['timestamp'].dt.hour
+        df['timestamp'] = df['timestamp'].apply(set_hours)
+        
+        df = df.groupby("timestamp").size().reset_index(name='count')
+        df.plot.bar(x="timestamp", y="count")
+        plot.show(block=True)
+        
 
 # def create_animated_dataframe(data_frame):
 #     new_data_frame = data_frame.sort_values('timestamp')
@@ -95,11 +102,10 @@ def show_hours_views(data_frame):
 #     data_frame.plot_animated('tets.gif', period_fmt="%b%Y", title="ciao")
 
 if __name__ == "__main__":
-    pd.set_option('display.max_columns', None)
-    data = load_data()
-    data_frame = create_pandas_data_frame(data)
-    show_barplot(data_frame)
-    show_hours_views(data_frame)
+    yt = YoutubeAnalizer()
+    yt.show_barplot()
+    yt.show_hours_views()
+
     
 
         
