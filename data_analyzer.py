@@ -27,23 +27,19 @@ class DataAnalyzer(ABC):
         if not self.data_frame:
             self.create_dataframe()
         return self.data_frame
-    
+
+    @abstractmethod
+    def set_hours(self, hour):
+        pass
     #PLOT NUMBERS OF VIDEO SAW BY TIME OF THE DAY (every hour)
     def show_views_by_hours(self):
-        #Function to select 
-        def set_hours(hour):
-            if 'nan' != str(hour):
-                hour = str(hour)
-                hour.replace('.', ':')
-                hour = '0' + hour + '0' if len(hour) == 3 else hour + '0'
-                return hour
 
         df = self.data_frame.copy()
         df['timestamp'] = df['timestamp'].dt.hour
-        df['timestamp'] = df['timestamp'].apply(set_hours)
+        df['timestamp'] = df['timestamp'].apply(self.set_hours)
         
         df = df.groupby("timestamp").size().reset_index(name='count')
-        df.plot.bar(x="timestamp", y="count", title="Most Viewed Channels", fontsize=10)
+        df.plot.bar(x="timestamp", y="count", title="Views by Hour", fontsize=10)
         plot.tight_layout()
         plot.savefig(self.get_file_name('views_by_hours'))
         #plot.show(block=True)
@@ -56,11 +52,8 @@ class DataAnalyzer(ABC):
         #Add rows with empty days with 0 as total videos watched
         dtr = pd.date_range(df['date'].min(), df['date'].max(), freq='D').to_frame(name='date')
         dtr['total_of_the_day'] = 0
-
         df.merge(dtr, how='right', on='date').fillna(0).pop('total_of_the_day_y')
-
-        
-        
+    
         df.plot(x='date', y='total_of_the_day')
         plot.tight_layout()
         plot.savefig(self.get_file_name('views_by_day_alltime.png'))
@@ -91,7 +84,13 @@ class YoutubeAnalizer(DataAnalyzer):
     def to_csv(self):
         self.data_frame.to_csv(f"data/{self.FILE_NAME[:-5]}.csv")
 
-    
+    def set_hours(hour):
+            if 'nan' != str(hour):
+                hour = str(hour)
+                hour.replace('.', ':')
+                hour = '0' + hour + '0' if len(hour) == 3 else hour + '0'
+                return hour
+
     #PARSE JSON AND CREATE A DATA FRAME OBJECT
     def create_dataframe(self):
 
@@ -201,8 +200,14 @@ class TikTokAnalyzer(DataAnalyzer):
         self.data_frame = df
 
     def get_file_name(self, name):
-        return f"img/{name}.png"
-
+        return f"img/tiktok_{name}.png"
+    
+    def set_hours(self, hour):
+        time = str(hour)
+        if len(time) == 1:
+            time = '0' + time
+        return time + ':00'
+        
 if __name__ == "__main__":
     yt = YoutubeAnalizer()    
     tiktok = TikTokAnalyzer()
@@ -215,5 +220,5 @@ if __name__ == "__main__":
     yt.show_views_by_day()    
     yt.animated_plot()
 
-    yt.to_csv()
-    tiktok.to_csv()
+    # yt.to_csv()
+    # tiktok.to_csv()
