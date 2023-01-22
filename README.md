@@ -1,16 +1,13 @@
 # TikTok/Youtube data visualizer
 
-This script will plot Youtube and TikTok video history. 
+Utilizzando questo script è possibile visualizzare dati relativi alla cronologia di Youtube e TikTok.
 
 # How To Use
-Download YouTube and TikTok data in a JSON file and place them in a new folder called 'data'. 
-Run Markup :  `py3 data_analyzer.py` after it's done you can find plots and animation saved in a folder called 'img'
+La cronologia di Youtube è possibile scaricarla da ![google takeout](https://takeout.google.com/), mentre i dati di TikTok è possibile scaricarli andando in impostazioni -> account. Una volta scaricati in formato JSON devono essere posizionati nella cartella 'data'.
 
 # Note
-If you download YouTube history in an HTML file, run Markup: `py3 html_parser.py` to get a JSON file.
+Se i dati di Youtube sono stati scaricati in HTML è possibile convertirli eseguendo il file: 'htmlParser.py'
 
 # Examples
 
 ![alt text](https://i.imgur.com/y2zejMK.png)
-
-We can see that i saw more than 4000 video at 13:00 and 14:00 from 2013 to 2022
