@@ -132,5 +132,5 @@ dmypy.json
 data/*
 *.mp4
 *.csv
-*.ipynb
 img/*
+data_analyzer.py
