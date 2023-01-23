@@ -7,7 +7,3 @@ La cronologia di Youtube è possibile scaricarla da ![google takeout](https://ta
 
 # Note
 Se i dati di Youtube sono stati scaricati in HTML è possibile convertirli eseguendo il file: 'htmlParser.py'. Funziona solo se i dati sono in italiano.
-
-# Examples
-![alt text](https://i.imgur.com/y2zejMK.png)
-Questo è un esempio realizzato con i dati di Youtube, è immediato notare le fasce orarie in cui si visionano più video.
